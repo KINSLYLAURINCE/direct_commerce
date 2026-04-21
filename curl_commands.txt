@@ -1,0 +1,105 @@
+# ============================================
+# FIRST: LOGIN TO GET TOKEN
+# ============================================
+
+# Login (save the token from response)
+curl -X POST http://localhost:5000/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"kingslydebruyne17@gmail.com\",\"password\":\"Admin123\"}"
+
+# Set token variable (Windows CMD)
+set token=YOUR_TOKEN_HERE
+
+# ============================================
+# AUTH ROUTES
+# ============================================
+
+# Logout
+curl -X POST http://localhost:5000/api/auth/logout -H "Authorization: Bearer %token%"
+
+# Get Profile
+curl -X GET http://localhost:5000/api/auth/profile -H "Authorization: Bearer %token%"
+
+# ============================================
+# CATEGORY ROUTES
+# ============================================
+
+# Get All Categories (Public)
+curl -X GET http://localhost:5000/api/categories
+
+# Get Single Category (Public)
+curl -X GET http://localhost:5000/api/categories/{category_id}
+
+# Create Category (Admin)
+curl -X POST http://localhost:5000/api/categories -H "Authorization: Bearer %token%" -F "name=Electronics" -F "description=All electronic devices" -F "image=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg"
+
+# Update Category (Admin)
+curl -X PUT http://localhost:5000/api/categories/{category_id} -H "Authorization: Bearer %token%" -F "name=Updated Electronics" -F "description=Updated description" -F "image=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg"
+
+# Delete Category (Admin)
+curl -X DELETE http://localhost:5000/api/categories/{category_id} -H "Authorization: Bearer %token%"
+
+# ============================================
+# PRODUCT ROUTES
+# ============================================
+
+# Get All Products (Public)
+curl -X GET http://localhost:5000/api/products
+
+# Get Single Product (Public)
+curl -X GET http://localhost:5000/api/products/{product_id}
+
+# Create Product (Admin) - with main image and multiple sub-images
+curl -X POST http://localhost:5000/api/products -H "Authorization: Bearer %token%" -F "name=Product Name" -F "description_title=Title" -F "description=Description" -F "price=99.99" -F "sold_price=89.99" -F "tag=new" -F "category_id={category_id}" -F "main_image=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg" -F "sub_images=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg" -F "sub_images=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg"
+
+# Update Product (Admin)
+curl -X PUT http://localhost:5000/api/products/{product_id} -H "Authorization: Bearer %token%" -F "name=Updated Product" -F "price=79.99"
+
+# Update Product with new images (Admin)
+curl -X PUT http://localhost:5000/api/products/{product_id} -H "Authorization: Bearer %token%" -F "main_image=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg" -F "sub_images=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg"
+
+# Delete Product (Admin)
+curl -X DELETE http://localhost:5000/api/products/{product_id} -H "Authorization: Bearer %token%"
+
+# ============================================
+# WHATSAPP INQUIRY ROUTES
+# ============================================
+
+# Create WhatsApp Inquiry (Public)
+curl -X POST http://localhost:5000/api/whatsapp -H "Content-Type: application/json" -d "{\"name\":\"John\",\"surname\":\"Doe\",\"email\":\"john@example.com\",\"phone_number\":\"123456789\",\"country_code\":\"+237\",\"country\":\"Cameroon\",\"town\":\"Douala\",\"address\":\"123 Main Street\",\"product_id\":\"{product_id}\"}"
+
+# Get All Inquiries (Admin)
+curl -X GET http://localhost:5000/api/whatsapp -H "Authorization: Bearer %token%"
+
+# Get Single Inquiry (Admin)
+curl -X GET http://localhost:5000/api/whatsapp/{inquiry_id} -H "Authorization: Bearer %token%"
+
+# Delete Inquiry (Admin)
+curl -X DELETE http://localhost:5000/api/whatsapp/{inquiry_id} -H "Authorization: Bearer %token%"
+
+# ============================================
+# CONTACT MESSAGE ROUTES
+# ============================================
+
+# Create Contact Message (Public)
+curl -X POST http://localhost:5000/api/contact -H "Content-Type: application/json" -d "{\"name\":\"Jane\",\"surname\":\"Doe\",\"email\":\"jane@example.com\",\"phone_number\":\"987654321\",\"message\":\"I have a question about your products\"}"
+
+# Get All Contact Messages (Admin)
+curl -X GET http://localhost:5000/api/contact -H "Authorization: Bearer %token%"
+
+# Get Single Contact Message (Admin)
+curl -X GET http://localhost:5000/api/contact/{message_id} -H "Authorization: Bearer %token%"
+
+# Delete Contact Message (Admin)
+curl -X DELETE http://localhost:5000/api/contact/{message_id} -H "Authorization: Bearer %token%"
+
+# ============================================
+# EXAMPLE WITH REAL IDs
+# ============================================
+
+# Example: Create category
+curl -X POST http://localhost:5000/api/categories -H "Authorization: Bearer %token%" -F "name=Fashion" -F "description=Clothing and accessories" -F "image=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg"
+
+# Example: Create product (using category ID: 766f9ad4-6c51-4f8f-9f12-d507efe86250)
+curl -X POST http://localhost:5000/api/products -H "Authorization: Bearer %token%" -F "name=Smartphone Pro" -F "description_title=Flagship Killer" -F "description=Latest smartphone" -F "price=699.99" -F "sold_price=649.99" -F "tag=new" -F "category_id=766f9ad4-6c51-4f8f-9f12-d507efe86250" -F "main_image=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg" -F "sub_images=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg" -F "sub_images=@C:\Users\SIR-Tech\Pictures\Camera Roll\test.jpg"
+
+# Example: Create WhatsApp inquiry (using product ID: 5f0e6508-2022-4a8c-9848-0f5d9552390b)
+curl -X POST http://localhost:5000/api/whatsapp -H "Content-Type: application/json" -d "{\"name\":\"John\",\"surname\":\"Doe\",\"email\":\"john@example.com\",\"phone_number\":\"123456789\",\"country_code\":\"+237\",\"country\":\"Cameroon\",\"town\":\"Douala\",\"address\":\"123 Main Street\",\"product_id\":\"5f0e6508-2022-4a8c-9848-0f5d9552390b\"}"
