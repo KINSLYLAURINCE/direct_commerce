@@ -19,15 +19,12 @@ const createAdmin = async () => {
 
     const adminRoleId = roleResult.rows[0].id;
 
-    const existingAdmin = await db.query(
-      'SELECT id FROM users WHERE email = $1',
-      [adminEmail]
+    // Delete existing admin if exists
+    await db.query(
+      'DELETE FROM users WHERE email = $1 OR username = $2',
+      [adminEmail, adminUsername]
     );
-
-    if (existingAdmin.rows.length > 0) {
-      console.log('Admin already exists');
-      return;
-    }
+    console.log('🗑️ Old admin deleted (if existed)');
 
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
     
