@@ -1,0 +1,29 @@
+name: Keep API awake
+
+on:
+  schedule:
+    # Every 5 minutes. Minimum interval GitHub allows for scheduled workflows.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping Render API
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Wake up etcg-api
+        run: |
+          URL="https://etcg-api.onrender.com/"
+          for i in 1 2 3; do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$URL" || echo "000")
+            echo "attempt $i -> HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              echo "Service is awake."
+              exit 0
+            fi
+            # Cold starts on Render can take 30-90s; give it time before retrying.
+            sleep 20
+          done
+          echo "Service did not return 200 after 3 attempts."
+          exit 1
