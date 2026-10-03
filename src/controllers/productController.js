@@ -1,13 +1,19 @@
 const db = require('../config/database');
-const { cloudinary } = require('../config/cloudinary');
+const fs = require('fs');
+const path = require('path');
 
-// Helper: extract Cloudinary public_id from URL to delete it
-const getPublicId = (url) => {
-  if (!url) return null;
-  const parts = url.split('/');
-  const folder = parts[parts.length - 2];
-  const filename = parts[parts.length - 1].split('.')[0];
-  return `${folder}/${filename}`;
+const UPLOAD_ROOT = path.join(__dirname, '..', '..', 'uploads');
+
+// Images are stored on local disk. Delete the file matching a stored /uploads/... path.
+const deleteLocalImage = async (publicUrl) => {
+  if (!publicUrl || typeof publicUrl !== 'string') return;
+  if (!publicUrl.startsWith('/uploads/')) return;
+  const abs = path.join(UPLOAD_ROOT, publicUrl.replace('/uploads/', ''));
+  try {
+    await fs.promises.unlink(abs);
+  } catch (err) {
+    if (err.code !== 'ENOENT') console.error('Could not delete image:', err.message);
+  }
 };
 
 const getProducts = async (req, res) => {
@@ -72,13 +78,13 @@ const createProduct = async (req, res) => {
       return res.status(400).json({ message: 'Category not found' });
     }
 
-    // ✅ Cloudinary returns full URL in req.file.path
+    // multer disk storage gives an absolute path; store the public /uploads/... URL
     const main_image = req.files?.main_image
-      ? req.files.main_image[0].path
+      ? `/uploads/products/main/${path.basename(req.files.main_image[0].path)}`
       : null;
 
     const sub_images = req.files?.sub_images
-      ? req.files.sub_images.map(file => file.path)
+      ? req.files.sub_images.map(f => `/uploads/products/sub/${path.basename(f.path)}`)
       : [];
 
     const result = await db.query(
@@ -138,24 +144,18 @@ const updateProduct = async (req, res) => {
     let main_image = currentProduct.main_image;
     let sub_images = currentProduct.sub_images || [];
 
-    // ✅ If new main image uploaded, delete old one from Cloudinary
+    // If new main image uploaded, remove the old one from disk
     if (req.files?.main_image) {
-      if (main_image) {
-        const publicId = getPublicId(main_image);
-        if (publicId) await cloudinary.uploader.destroy(publicId);
-      }
-      main_image = req.files.main_image[0].path;
+      await deleteLocalImage(main_image);
+      main_image = `/uploads/products/main/${path.basename(req.files.main_image[0].path)}`;
     }
 
-    // ✅ If new sub images uploaded, delete old ones from Cloudinary
+    // If new sub images uploaded, remove the old ones from disk
     if (req.files?.sub_images) {
-      if (sub_images && Array.isArray(sub_images)) {
-        for (const imgUrl of sub_images) {
-          const publicId = getPublicId(imgUrl);
-          if (publicId) await cloudinary.uploader.destroy(publicId);
-        }
+      if (Array.isArray(sub_images)) {
+        for (const imgUrl of sub_images) await deleteLocalImage(imgUrl);
       }
-      sub_images = req.files.sub_images.map(file => file.path);
+      sub_images = req.files.sub_images.map(f => `/uploads/products/sub/${path.basename(f.path)}`);
     }
 
     const updatedName = name !== undefined ? name : currentProduct.name;
@@ -207,17 +207,12 @@ const deleteProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // ✅ Delete main image from Cloudinary
-    if (product.rows[0].main_image) {
-      const publicId = getPublicId(product.rows[0].main_image);
-      if (publicId) await cloudinary.uploader.destroy(publicId);
-    }
+    // Delete image files from local disk
+    await deleteLocalImage(product.rows[0].main_image);
 
-    // ✅ Delete sub images from Cloudinary
-    if (product.rows[0].sub_images && Array.isArray(product.rows[0].sub_images)) {
+    if (Array.isArray(product.rows[0].sub_images)) {
       for (const imgUrl of product.rows[0].sub_images) {
-        const publicId = getPublicId(imgUrl);
-        if (publicId) await cloudinary.uploader.destroy(publicId);
+        await deleteLocalImage(imgUrl);
       }
     }
 
