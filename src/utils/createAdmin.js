@@ -19,24 +19,41 @@ const createAdmin = async () => {
 
     const adminRoleId = roleResult.rows[0].id;
 
-    // Delete existing admin if exists
-    await db.query(
-      'DELETE FROM users WHERE email = $1 OR username = $2',
+    // Update in place when the account already exists. Never delete: the user id
+    // is embedded in issued JWTs, so deleting invalidates every active session.
+    const existing = await db.query(
+      'SELECT id FROM users WHERE email = $1 OR username = $2 LIMIT 1',
       [adminEmail, adminUsername]
     );
-    console.log('🗑️ Old admin deleted (if existed)');
+
+    if (existing.rows.length > 0) {
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+      await db.query(
+        'UPDATE users SET email = $1, username = $2, password = $3, role_id = $4 WHERE id = $5',
+        [adminEmail, adminUsername, hashedPassword, adminRoleId, existing.rows[0].id]
+      );
+
+      console.log(`✅ Admin account exists (id=${existing.rows[0].id}) - credentials synced`);
+      return;
+    }
 
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
-    
+
     await db.query(
       'INSERT INTO users (username, email, password, role_id) VALUES ($1, $2, $3, $4)',
       [adminUsername, adminEmail, hashedPassword, adminRoleId]
     );
 
     console.log('✅ Admin account created successfully');
-    
-    await sendAdminCredentials(adminEmail, adminUsername, adminPassword);
-    console.log('📧 Admin credentials sent to email');
+
+    // Only notify on genuine creation, not on every restart.
+    try {
+      await sendAdminCredentials(adminEmail, adminUsername, adminPassword);
+      console.log('📧 Admin credentials sent to email');
+    } catch (emailError) {
+      console.error('⚠️ Could not send admin credentials email:', emailError.message);
+    }
 
   } catch (error) {
     console.error('Error creating admin:', error);
