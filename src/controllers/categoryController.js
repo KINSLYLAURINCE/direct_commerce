@@ -1,19 +1,12 @@
 const db = require('../config/database');
-const fs = require('fs');
-const path = require('path');
+const { cloudinary } = require('../config/cloudinary');
 
-const UPLOAD_ROOT = path.join(__dirname, '..', '..', 'uploads');
-
-// Images live on local disk. Delete the file matching a stored /uploads/... path.
-const deleteLocalImage = async (publicUrl) => {
-  if (!publicUrl || typeof publicUrl !== 'string') return;
-  if (!publicUrl.startsWith('/uploads/')) return;
-  const abs = path.join(UPLOAD_ROOT, publicUrl.replace('/uploads/', ''));
-  try {
-    await fs.promises.unlink(abs);
-  } catch (err) {
-    if (err.code !== 'ENOENT') console.error('Could not delete image:', err.message);
-  }
+const getPublicId = (url) => {
+  if (!url) return null;
+  const parts = url.split('/');
+  const folder = parts[parts.length - 2];
+  const filename = parts[parts.length - 1].split('.')[0];
+  return `${folder}/${filename}`;
 };
 
 const getCategories = async (req, res) => {
@@ -51,8 +44,8 @@ const createCategory = async (req, res) => {
   try {
     const { name, description } = req.body;
 
-// multer disk storage gives an absolute path; store the public URL
-    const image = req.file ? `/uploads/categories/${path.basename(req.file.path)}` : null;
+    // ✅ Cloudinary URL stored directly
+    const image = req.file ? req.file.path : null;
 
     const existingCategory = await db.query(
       'SELECT id FROM categories WHERE name = $1',
@@ -94,8 +87,13 @@ const updateCategory = async (req, res) => {
     let image = existingCategory.rows[0]?.image;
 
     if (req.file) {
-      await deleteLocalImage(image);
-      image = `/uploads/categories/${path.basename(req.file.path)}`;
+      // ✅ Delete old image from Cloudinary
+      if (image) {
+        const publicId = getPublicId(image);
+        if (publicId) await cloudinary.uploader.destroy(publicId);
+      }
+      // ✅ Use new Cloudinary URL
+      image = req.file.path;
     }
 
     const result = await db.query(
@@ -126,8 +124,11 @@ const deleteCategory = async (req, res) => {
       return res.status(404).json({ message: 'Category not found' });
     }
 
-    // Delete image file from local disk
-    await deleteLocalImage(category.rows[0]?.image);
+    // ✅ Delete image from Cloudinary
+    if (category.rows[0]?.image) {
+      const publicId = getPublicId(category.rows[0].image);
+      if (publicId) await cloudinary.uploader.destroy(publicId);
+    }
 
     await db.query('DELETE FROM categories WHERE id = $1', [id]);
 
